@@ -1,5 +1,4 @@
 import sys
-# import libraries
 import pandas as pd
 import re
 import nltk
