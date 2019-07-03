@@ -1,8 +1,38 @@
 # Disaster-Response-Pipeline
 Create required data processing and machine learning pipeline to enable proper classification of the messages or social media mentions during disaster
 
-## Cleaning the text data
-Import the messages data and their corresponding categories, process the categories dataset to extract relevant category labels
+## ETL Pipeline
+### Cleaning the data
+Import the messages data and their corresponding categories, process the categories dataset to 
+ - Extract labels for all 36 categories
+ - Create one column per category label
+ - Convert the flag for each category label into binary
+
+### Saving the data into SQL Database
+Data after cleaning the category labels is merged with messages data and exported as a table into a SQL database
+
+## Modelling Pipeline
+### NLP Pipeline
+NLP pipeline extracts model usable features from Messages -
+
+ - Tokenizer:
+   - Breaks the messages into words
+   - Substitues URLs with placeholders
+   - Converts all characters to lowercase
+   - Lemmatizes the words i.e. removes the inflectional forms of the words
+   
+ - Feature list
+  - TFIDF word vectorizer
+    - Vectorizer converts the messages into word count vectors i.e. a vector with unique list of words in all the messages are created and the counts for each word are reported as vector data
+    - TFIDF: Term Frequency and Inverse Document Frequency as a technique downweights the words that are more recurrent across all messages and overweights the words that are less prevalent
+    - Output from the TFIDF word vectorization is filtered to include only top 1000 words
+
+  - TFIDF N-gram vectorizer
+    - N-grams are the sequence of characters that are prevalent in the messages dataset
+    - Data is vectorized as N-grams and the frequency are adjusted for TFIDF
+    - Output from TFIDF N-gram vectorization is filtered to include only top 
+    
+  
 
 ## Instructions:
 
