@@ -2,7 +2,7 @@ import sys
 import pandas as pd
 import nltk
 from sqlalchemy import create_engine
-import sqllite3
+import sqlite3
 
 def load_data(messages_filepath, categories_filepath):
     messages = pd.read_csv(messages_filepath)
