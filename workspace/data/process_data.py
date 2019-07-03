@@ -22,7 +22,7 @@ def clean_data(df):
     for column in categories1:
         categories1[column] = categories1[column].apply(lambda x: x.split('-')[1])
         categories1[column] = categories1[column].astype(int)
-        #categories1[column] = categories1[column].apply(lambda x: 1 if x>0 else 0)
+        categories1[column] = categories1[column].apply(lambda x: 1 if x>0 else 0)
     categories1['id'] = categories['id'].copy()
     df = df.drop('categories', axis = 1)
     df = df.merge(categories1, how = 'left', on = ['id'])
