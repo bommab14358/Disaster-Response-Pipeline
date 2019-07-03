@@ -2,6 +2,7 @@ import sys
 import pandas as pd
 import nltk
 from sqlalchemy import create_engine
+import sqllite3
 
 def load_data(messages_filepath, categories_filepath):
     messages = pd.read_csv(messages_filepath)
@@ -29,6 +30,10 @@ def clean_data(df):
     return df
 
 def save_data(df, database_filename):
+    connection  = sqlite3.connect(database_filename)
+    cursor = connection.cursor()
+    cursor.execute('drop table if exists data')
+    connection.close()
     engine = create_engine('sqlite:///'+database_filename)
     df.to_sql('data', engine, index=False)
 
