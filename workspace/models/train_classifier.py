@@ -1,18 +1,25 @@
-import sys
 import pandas as pd
 import re
 import nltk
 import pickle
+import scipy
+import time
+import sys
+import warnings 
 
+warnings.filterwarnings('ignore')
 nltk.download(['punkt', 'wordnet'])
 
 from sqlalchemy import create_engine
 from nltk.stem import WordNetLemmatizer
-from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
+
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score, classification_report, accuracy_score
 from sklearn.model_selection import train_test_split, GridSearchCV
+
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.multioutput import MultiOutputClassifier, ClassifierChain
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
 
 def load_data(database_filepath):
     engine = create_engine('sqlite:///'+database_filepath)
@@ -71,7 +78,7 @@ def evaluate_model(model, X_test, Y_test, category_names):
                         100*round(recall_score(y_actual[i], y_pred[i]), 4),
                        round(f1_score(y_actual[i], y_pred[i]), 4)])
     results = pd.DataFrame(results, columns = ['Accuracy', 'Precision', 'Recall', 'F1 Score'], index = category_names)
-    return results
+    print(results)
 
 def save_model(model, model_filepath):
     pickle.dump(model, open(model_filepath, 'wb'))
