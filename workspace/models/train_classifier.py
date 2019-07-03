@@ -9,12 +9,11 @@ nltk.download(['punkt', 'wordnet'])
 
 from sqlalchemy import create_engine
 from nltk.stem import WordNetLemmatizer
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score, classification_report, accuracy_score
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.multioutput import MultiOutputClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
 
 def load_data(database_filepath):
     engine = create_engine('sqlite:///'+database_filepath)
@@ -45,9 +44,11 @@ def tokenize(text):
 
 def build_model():
     pipeline = Pipeline([
-        ('vect', CountVectorizer(tokenizer=tokenize)),
-        ('tfidf', TfidfTransformer()),
-        ('clf', MultiOutputClassifier(estimator=RandomForestClassifier(max_depth=3, n_estimators=100, random_state=42)))
+        ('vect', FeatureUnion([
+            ('tfidf_word', TfidfVectorizer(tokenizer=tokenize, analyzer='word', max_features=2000)),
+            ('tfidf_ngram', TfidfVectorizer(tokenizer=tokenize, analyzer = 'char', ngram_range=(3,7), max_features=5000))
+        ])),
+        ('clf', RandomForestClassifier(random_state=42))
     ])
     return pipeline
     
@@ -55,15 +56,23 @@ def build_model():
 
 def evaluate_model(model, X_test, Y_test, category_names):
     y_pred = model.predict(X_test)
+    if scipy.sparse.issparse(y_pred):
+        y_pred = y_pred.toarray()
     print('Overall model performance metrics.. \n')
     print('Accuracy: ', 100*round(accuracy_score(Y_test, y_pred), 4))
     print('Precision: ', 100*round(precision_score(Y_test, y_pred, average='micro'), 4))
     print('Recall: ', 100*round(recall_score(Y_test, y_pred, average='micro'), 4))
-    print('ROC AUC : ', 100*round(roc_auc_score(Y_test, y_pred, average = 'micro'), 4))
+    print('F1 Score : ', round(f1_score(Y_test, y_pred, average = 'micro'), 4))
+    results = []
+    y_actual = pd.DataFrame(Y_test, columns = category_names)
+    y_pred = pd.DataFrame(y_pred, columns = category_names)
     for i in category_names:
-        print('Classification report for '+i+' is:\n')
-        print(classification_report(pd.DataFrame(Y_test, columns = category_names)[i], pd.DataFrame(y_pred, columns = category_names)[i]))
-
+        results.append([100*round(accuracy_score(y_actual[i], y_pred[i]), 4),
+                        100*round(precision_score(y_actual[i], y_pred[i]), 4),
+                        100*round(recall_score(y_actual[i], y_pred[i]), 4),
+                       round(f1_score(y_actual[i], y_pred[i]), 4)])
+    results = pd.DataFrame(results, columns = ['Accuracy', 'Precision', 'Recall', 'F1 Score'], index = category_names)
+    return results
 
 def save_model(model, model_filepath):
     pickle.dump(model, open(model_filepath, 'wb'))
