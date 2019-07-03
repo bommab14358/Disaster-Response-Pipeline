@@ -21,7 +21,7 @@ NLP pipeline extracts model usable features from Messages -
    - Converts all characters to lowercase
    - Lemmatizes the words i.e. removes the inflectional forms of the words
    
- - Feature list
+#### Feature Generation
   - TFIDF word vectorizer
     - Vectorizer converts the messages into word count vectors i.e. a vector with unique list of words in all the messages are created and the counts for each word are reported as vector data
     - TFIDF: Term Frequency and Inverse Document Frequency as a technique downweights the words that are more recurrent across all messages and overweights the words that are less prevalent
@@ -32,7 +32,8 @@ NLP pipeline extracts model usable features from Messages -
     - Data is vectorized as N-grams and the frequency are adjusted for TFIDF
     - Output from TFIDF N-gram vectorization is filtered to include only top 
     
-  
+### Modelling Pipeline    
+RandomForest Classifier is used for classifying the messages into the multi-label output i.e. one message belonging to more than one category. Pipeline outputs the Accuracy, Precision, Recall and F1 score for the overall model and for each category 
 
 ## Instructions:
 
