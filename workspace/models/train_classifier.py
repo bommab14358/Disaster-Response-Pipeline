@@ -98,10 +98,10 @@ def build_model():
         ])),
         ('clf', RandomForestClassifier(n_estimators=100, random_state=42))
     ])
-    {'clf__n_estimators':[100, 200], 
+    parameters = {'clf__n_estimators':[100, 200], 
              'vect__tfidf_word__max_features': [2000, 5000],
              'vect__tfidf_ngram__ngram_range': [(3, 7), (3, 9)]}
-    gscv = GridSearchCV(fin_pipeline, param_grid=parameters, verbose = True, n_jobs = -1, cv = 2)
+    gscv = GridSearchCV(pipeline, param_grid=parameters, verbose = True, n_jobs = -1, cv = 2)
     return gscv
     
 
