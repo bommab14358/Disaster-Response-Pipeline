@@ -2,20 +2,20 @@
 import pandas as pd         # For dataframe processing
 import re                   # For regular experession processing
 import nltk                 # For Natural Language Processing
-import pickle               # For saving the final models 
+import pickle               # For saving the final models
 import scipy                # For processing the sparse matrix
 import time                 # For evalulating time taken in model training
-import sys              
+import sys
 import warnings             # For suppressing warnings
 
 warnings.filterwarnings('ignore')
 nltk.download(['punkt', 'wordnet'])
 
 from sqlalchemy import create_engine    # To create SQL engine to read the processed data
-from nltk.stem import WordNetLemmatizer # To lemmatize the words extracted from the messages data 
+from nltk.stem import WordNetLemmatizer # To lemmatize the words extracted from the messages data
 # To vectorize the message text into words and apply TFIDF factorization
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer  
-# To evaulate model performance 
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
+# To evaulate model performance
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score, classification_report, accuracy_score
 # To split the input data into train and test sets and for hyperparameter tuning
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -30,10 +30,10 @@ from sklearn.ensemble import RandomForestClassifier
 def load_data(database_filepath):
     '''
     Objective: To import the data as dataframe from SQL database
-    
+
     Input -
     database_filepath: Path to the location of SQL database (including database name)
-    
+
     Output -
     X - Array containing message text which make up the independent variables
     Y - Array containing binary flag columns for each of 36 categories
@@ -54,21 +54,21 @@ def load_data(database_filepath):
 def tokenize(text):
     '''
     Objective: To split the message text into words and process the words into a model interpretable format
-    
+
     Input -
     text: Message as a text item
-    
+
     Output -
-    clean_tokens: Array containing all the words that make up the text with its inflected forms removed and case lowered 
+    clean_tokens: Array containing all the words that make up the text with its inflected forms removed and case lowered
     '''
     # Define regular expression to identify URLs
     url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    # Identify all the URLs within the text and replace the url with text 'urlplaceholder' 
+    # Identify all the URLs within the text and replace the url with text 'urlplaceholder'
     detected_urls = re.findall(url_regex, text)
     for url in detected_urls:
         text = text.replace(url, "urlplaceholder")
-    
-    # Convert text into an array of words 
+
+    # Convert text into an array of words
     tokens = nltk.word_tokenize(text)
     # Convert the words into lowercase and remove the inflection forms from the words
     lemmatizer = WordNetLemmatizer()
@@ -83,11 +83,11 @@ def tokenize(text):
 def build_model():
     '''
     Objective: Create a Feature engineering, modelling and hyperparameter tuning pipelines
-    
+
     Input - None
-    Output - 
-    pipeline: Hyperparameter tuner like GridSearchCV which will identify the best parameters for the feature engineering and 
-    modelling pipeline  
+    Output -
+    pipeline: Hyperparameter tuner like GridSearchCV which will identify the best parameters for the feature engineering and
+    modelling pipeline
     '''
     # Create features by extracting words and ngrams from the text, factorizing them by TFIDF and selecting the top n features
     # Use RandomForest as classifier to identify the multiple labels that are associated with each message text
@@ -98,29 +98,30 @@ def build_model():
         ])),
         ('clf', RandomForestClassifier(n_estimators=100, random_state=42))
     ])
-    parameters = {'clf__n_estimators':[100, 200], 
-             'vect__tfidf_word__max_features': [2000, 5000],
-             'vect__tfidf_ngram__ngram_range': [(3, 7), (3, 9)]}
-    gscv = GridSearchCV(pipeline, param_grid=parameters, verbose = True, n_jobs = -1, cv = 2)
+    parameters = {'clf__n_estimators':[100, 200]
+                  #,'vect__tfidf_word__max_features': [2000, 5000]
+                  #,'vect__tfidf_ngram__ngram_range': [(3, 7), (3, 9)]
+                 }
+    gscv = GridSearchCV(pipeline, param_grid=parameters, verbose = 50, n_jobs = -2, cv = 2)
     return gscv
-    
+
 
 def evaluate_model(model, X_test, Y_test, category_names):
     '''
     Objective: To evaluate the performance of prediction pipeline on data it has not seen while training
-    
-    Input - 
+
+    Input -
     model: Prediction pipeline trained on subset of total available data (train data)
     X_test: Array containing messages that are not used for training the prediction pipeline
     Y_test: Array containing categories for all messages part of X_test dataset
     category_names: Array containing category labels
-    
+
     Output-
     Overall model Accuracy, Precision, Recall and F1 score followed by the same set of metrics for each category
     '''
     # Calculate model predictions for messages in X_test set
     y_pred = model.predict(X_test)
-    # Create an array of predictions if the output from previous step is a sparse matrix 
+    # Create an array of predictions if the output from previous step is a sparse matrix
     if scipy.sparse.issparse(y_pred):
         y_pred = y_pred.toarray()
     # Calculate and print the Overall model Accuracy, Precision, Recall and F1 score
@@ -146,7 +147,7 @@ def evaluate_model(model, X_test, Y_test, category_names):
 def save_model(model, model_filepath):
     '''
     Objective: To save the final model as pickle file to be used in WebApp or to be used in later point of time
-    
+
     Input -
     model: Model or prediction pipeline that is trained on the subset of the total available data
     model_filepath: Path to the location of pickle file that holds final model (including pickle file name)
@@ -168,21 +169,21 @@ def main():
         X, Y, category_names = load_data(database_filepath)
         # To split the imported data into Train and Test sets
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-        
+
         # Instantiate the creation of feature engineering, modelling and Hyperparameter tuning pipeline by using build_model module
         print('Building model...')
         model = build_model()
         # To train the prediction pipeline on training data
         print('Training model...')
         model.fit(X_train, Y_train)
-        
+
         # Extract the model with best hyperparemeters to be used for prediction
         model1 = model.best_estimator_
-        
+
         # Evaluate best model's performance on test data by using evaluate_model module
         print('Evaluating model...')
         evaluate_model(model1, X_test, Y_test, category_names)
-        
+
         # Save the best model as a pickle file by using save_model module
         print('Saving model...\n    MODEL: {}'.format(model_filepath))
         save_model(model1, model_filepath)
