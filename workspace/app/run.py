@@ -1,19 +1,42 @@
+# Importing necessary libraries
+import pandas as pd         # For dataframe processing
+import re                   # For regular experession processing
+import nltk                 # For Natural Language Processing
+import pickle               # For saving the final models
+import scipy                # For processing the sparse matrix
+import time                 # For evalulating time taken in model training
+import sys
+import warnings             # For suppressing warnings
 import json
 import plotly
-import pandas as pd
 import warnings
+import re
 
 warnings.filterwarnings('ignore')
-
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+nltk.download(['punkt', 'wordnet'])
 
 from flask import Flask
 from flask import render_template, request, jsonify
 from plotly.graph_objs import Bar
 from sklearn.externals import joblib
 from sqlalchemy import create_engine
+
+
+from sqlalchemy import create_engine    # To create SQL engine to read the processed data
+from nltk.stem import WordNetLemmatizer # To lemmatize the words extracted from the messages data
+# To vectorize the message text into words and apply TFIDF factorization
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
+# To evaulate model performance
+from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score, classification_report, accuracy_score
+# To split the input data into train and test sets and for hyperparameter tuning
+from sklearn.model_selection import train_test_split, GridSearchCV
+
+# To create NLP and modelling pipeline
+from sklearn.pipeline import Pipeline, FeatureUnion
+# To create multi-label classifiers
+from sklearn.multioutput import MultiOutputClassifier, ClassifierChain
+# To classify the data into relevant classes
+from sklearn.ensemble import RandomForestClassifier
 
 
 app = Flask(__name__)
@@ -34,7 +57,9 @@ def tokenize(text):
     detected_urls = re.findall(url_regex, text)
     for url in detected_urls:
         text = text.replace(url, "urlplaceholder")
-
+    
+    punc_regex = '[.!?\\-\,:\(\)#\']'
+    text =re.sub(punc_regex, ' ', text)
     # Convert text into an array of words
     tokens = nltk.word_tokenize(text)
     # Convert the words into lowercase and remove the inflection forms from the words
@@ -46,13 +71,13 @@ def tokenize(text):
     # Return the array of processed words
     return clean_tokens
 
-
 # load data
 engine = create_engine('sqlite:///data/DisasterResponse.db')
 df = pd.read_sql_table('data', engine)
 
 # load model
 model = joblib.load("models/classifier.pkl")
+
 
 
 # index webpage displays cool visuals and receives user input text for model
@@ -64,9 +89,21 @@ def index():
     1. To showcase genres
     2. To showcase the distribution of Categories by their frequency
     '''
-    # Extract genre distribution
-    genre_counts = df.groupby('genre').count()['message']
-    genre_names = list(genre_counts.index)
+    # Extract most repititive words based on their Tfidf score
+    vects = TfidfVectorizer(tokenizer= tokenize, analyzer='word', max_features=20)
+    messages = df['message'].values
+    messages2 = vects.fit_transform(messages)
+    messages2 = messages2.toarray()
+    messages2 = pd.DataFrame(messages2, columns = list(vects.get_feature_names()))
+    
+    # Calculate total tfidf for top 20 words
+    message_tfidf = []
+    for i in messages2.columns:
+        message_tfidf.append([i, messages2[i].sum()])
+    message_tfidf = pd.DataFrame(message_tfidf, columns = ['word', 'tfidf_score']).sort_values(['tfidf_score'], ascending = False)
+    message_tfidf.index = message_tfidf.word
+    message_tfidf = message_tfidf['tfidf_score']
+    top_words = list(message_tfidf.index)
     
     # Extract category names
     labels = df.drop(['id', 'message', 'original', 'genre'], axis=1).columns
@@ -86,7 +123,7 @@ def index():
         {
             'data': [
                 {'x':labels,'y':label_freq,'type':'bar','row':1, 'col':1},
-                {'x':genre_names,'y':genre_counts,'type':'bar', 'xaxis':'x2', 'yaxis':'y2','row':2, 'col':1},
+                {'x':top_words,'y':message_tfidf,'type':'bar', 'xaxis':'x2', 'yaxis':'y2','row':2, 'col':1},
             ],
 
             'layout': {
@@ -95,13 +132,13 @@ def index():
                 'height':1000,
                 'showlegend':False,
                 'grid':{'rows':2, 'columns':1, 'pattern':'independent'},
-                'title':'Distribution of messages by Category and Genre',
+                'title':'Distribution of messages by Category and Top words by total Tfidf value',
                 
                 'yaxis': {'title': "Count of messages"},
                 'xaxis': {'title': "Category Name", 'tickangle':45, 'tickfont':{'size':10}},
                 
-                'xaxis2':{'title':'Genre'},
-                'yaxis2':{'title':'Count of messages'},
+                'xaxis2':{'title':'Word'},
+                'yaxis2':{'title':'Total Tfidf value'},
                 }
             }
     ]
